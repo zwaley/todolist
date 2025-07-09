@@ -3,17 +3,26 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "setup": "node quick-setup.js",
+    "diagnose": "node debug-database-status.js",
+    "fix-db": "node auto-fix-database.js",
+    "fix-smart": "node smart-database-fix.js",
+    "fix-choose": "node choose-fix-method.js",
+    "dev:3001": "next dev -p 3001"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.50.3",
+    "clsx": "^2.1.1",
+    "dotenv": "^17.1.0",
     "next": "15.3.5",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

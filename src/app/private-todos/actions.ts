@@ -11,7 +11,7 @@ export async function addPrivateTodo(formData: FormData) {
     return
   }
 
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -34,7 +34,7 @@ export async function addPrivateTodo(formData: FormData) {
 }
 
 export async function togglePrivateTodo(todoId: number, isCompleted: boolean) {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
   const { error } = await supabase
@@ -50,7 +50,7 @@ export async function togglePrivateTodo(todoId: number, isCompleted: boolean) {
 }
 
 export async function deletePrivateTodo(todoId: number) {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
   const { error } = await supabase

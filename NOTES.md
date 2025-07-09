@@ -166,3 +166,83 @@ The `replace` tool requires an *exact literal match* for `old_string`, including
 
 **Solution**:
 For complex file modifications, especially those involving JSX or large blocks of code where `replace` is unreliable, use the `write_file` tool to *completely overwrite* the target file with the corrected content. This ensures the file's syntax and structure are precisely as intended, bypassing the `replace` tool's strict matching requirements.
+
+---
+
+## 9. 错误处理系统重大升级 🚀 **COMPLETED**
+
+### 最新更新 (2025-01-07)
+
+**问题背景：**
+用户对 `NEXT_REDIRECT` 错误信息不够详细感到沮丧，要求提供更具体的错误原因和解决方案。
+
+**实施的改进：**
+
+#### 1. 创建统一错误处理库 (`src/lib/error-handler.ts`)
+- ✅ 详细错误日志记录功能
+- ✅ 错误类型自动分类（认证、权限、数据库、网络等）
+- ✅ 用户友好错误消息生成
+- ✅ 基于错误类型的解决方案建议
+- ✅ 开发者详细错误信息
+
+#### 2. 增强错误显示组件 (`src/components/ErrorDisplay.tsx`)
+- ✅ 智能错误类型识别和图标显示
+- ✅ 可展开的详细错误信息
+- ✅ 错误分类和解决方案显示
+- ✅ 响应式设计和暗色主题支持
+- ✅ 简化版错误显示组件
+
+#### 3. 改进团队创建功能
+- ✅ 更新 `actions.ts` 使用新的错误处理库
+- ✅ 创建增强的客户端表单组件 (`src/components/TeamCreateForm.tsx`)
+- ✅ 实时表单验证和用户反馈
+- ✅ 提交状态显示和加载动画
+- ✅ 字符计数和格式验证
+
+#### 4. 用户体验优化
+- ✅ 中文界面本地化
+- ✅ 详细的错误分类和解决建议
+- ✅ 实时验证反馈
+- ✅ 加载状态指示
+- ✅ 返回导航链接
+
+**技术特性：**
+- 🔍 错误类型自动分类：认证、权限、数据库、网络、验证、未知
+- 💡 智能解决方案建议
+- 📊 详细的错误日志记录
+- 🎨 用户友好的错误界面
+- ⚡ 实时表单验证
+- 🌙 暗色主题支持
+
+### 之前解决的问题
+
+#### NEXT_REDIRECT 错误的诊断历程
+
+**最终发现的问题：**
+- `team_members` 表缺少 `joined_at` 列
+- 错误代码：`42703` (column "joined_at" does not exist)
+- 这导致团队创建过程中添加成员失败
+
+**已解决的问题：**
+- ✅ `base64url` 编码问题已修复
+- ✅ `teams` 表的邀请码生成已更新为使用 MD5 哈希
+- ✅ RLS 策略已重新创建
+- ✅ 错误处理和用户体验大幅改进
+
+**解决方案：**
+执行 `fix-team-members-table.sql` 脚本来：
+1. 添加缺失的 `joined_at` 列
+2. 确保主键和外键约束
+3. 为现有记录设置 `joined_at` 时间戳
+4. 创建索引以提高查询性能
+5. 启用 RLS 并创建相关策略
+
+**team_members 表期望结构**:
+```sql
+CREATE TABLE team_members (
+    team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (team_id, user_id)
+);
+```
