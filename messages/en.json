@@ -1,0 +1,132 @@
+{
+  "common": {
+    "welcome": "Welcome",
+    "settings": "Settings",
+    "logout": "Logout",
+    "back": "Back",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "add": "Add",
+    "edit": "Edit",
+    "loading": "Loading...",
+    "submitting": "Submitting...",
+    "success": "Success",
+    "error": "Error",
+    "confirm": "Confirm",
+    "close": "Close"
+  },
+  "navigation": {
+    "myPrivateTodos": "My Private Todos",
+    "createTeam": "Create Team",
+    "backToTeams": "← Back to Team List",
+    "backToHome": "← Back to Home",
+    "personalSettings": "Personal Settings"
+  },
+  "auth": {
+    "loginOrSignUp": "Login or Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "signInWithEmail": "Sign in with Email",
+    "signUpWithEmail": "Sign up with Email",
+    "alreadyHaveAccount": "Already have an account?",
+    "noAccount": "Don't have an account?"
+  },
+  "teams": {
+    "yourTeams": "Your Teams",
+    "teamMembers": "Team Members",
+    "inviteNewMember": "Invite New Member",
+    "createNewTeam": "Create New Team",
+    "teamName": "Team Name",
+    "noTeamsYet": "You are not a member of any teams yet. Try creating one!",
+    "clickToViewTodos": "Click to view team todos",
+    "noTodosInTeam": "No todos yet",
+    "teamNamePlaceholder": "My Awesome Team",
+    "teamNameValidation": {
+      "required": "Team name cannot be empty",
+      "minLength": "Team name must be at least 2 characters",
+      "maxLength": "Team name cannot exceed 50 characters",
+      "invalidChars": "Team name can only contain Chinese, English, numbers, spaces, hyphens and underscores",
+      "lengthHint": "Team name should be between 2-50 characters"
+    },
+    "creating": "Creating...",
+    "createTeamDescription": "Create a new team to collaborate on managing todos"
+  },
+  "todos": {
+    "addNewTodo": "Add a New Todo",
+    "todoList": "Todo List",
+    "myTodoList": "My Todo List",
+    "noTodos": "No todos yet",
+    "noPrivateTodos": "You don't have any private todos yet. Add one above!",
+    "whatNeedsToBeDone": "What needs to be done?",
+    "addPrivateTodoPlaceholder": "Add a private task for yourself...",
+    "addNewPrivateTodo": "Add New Private Todo",
+    "myPrivateTodos": "My Private Todos",
+    "addAbove": "Add one above!"
+  },
+  "invite": {
+    "inviteNewMember": "Invite New Member",
+    "enterIdentifier": "Enter username, display name or email address...",
+    "invite": "Invite",
+    "inviting": "Inviting...",
+    "usageInstructions": "Usage Instructions",
+    "canInviteBy": "You can invite users by:",
+    "byEmail": "Email address: user@example.com",
+    "byUsername": "Username: letters, numbers and underscores only",
+    "byDisplayName": "Display name: supports Chinese names and various characters",
+    "validation": {
+      "required": "Please enter email address, username or display name",
+      "formatCorrect": "Format is correct"
+    },
+    "errors": {
+      "userNotFound": "User not found, please check if the email address, username or display name is correct",
+      "tryDifferentMethod": "Please try inviting using email address, username or display name"
+    }
+  },
+  "settings": {
+    "personalSettings": "Personal Settings",
+    "editProfile": "Edit Profile",
+    "accountInfo": "Account Information",
+    "email": "Email",
+    "userId": "User ID",
+    "username": "Username",
+    "displayName": "Display Name (Nickname)",
+    "avatarUrl": "Avatar URL",
+    "bio": "Bio",
+    "usernamePlaceholder": "Enter username (for invite feature)",
+    "displayNamePlaceholder": "Enter display name",
+    "avatarUrlPlaceholder": "Enter avatar image URL",
+    "bioPlaceholder": "Tell us about yourself...",
+    "usernameHint": "Username is used for team invite feature, can only contain letters, numbers and underscores",
+    "displayNameHint": "This is the name other users will see",
+    "avatarUrlHint": "Enter image link address, leave empty for default avatar",
+    "bioHint": "Maximum 500 characters",
+    "saveSettings": "Save Settings",
+    "accountActions": "Account Actions",
+    "usageTips": "💡 Usage Tips",
+    "tips": {
+      "username": "Username is used for team invite feature, once set others can invite you to teams using your username",
+      "displayName": "Display name is what other users see, you can use Chinese characters",
+      "avatarUrl": "Avatar URL supports common image formats (jpg, png, gif, etc.)",
+      "optional": "All settings are optional, you can modify them anytime"
+    },
+    "messages": {
+      "profileUpdated": "Profile updated successfully!",
+      "updateFailed": "Update failed: {error}"
+    }
+  },
+  "stats": {
+    "total": "Total",
+    "completed": "Completed",
+    "pending": "Pending",
+    "progress": "Progress"
+  },
+  "errors": {
+    "accessDenied": "You do not have access to this team.",
+    "teamNotFound": "Team not found.",
+    "somethingWentWrong": "Something went wrong",
+    "tryAgain": "Please try again later"
+  }
+}

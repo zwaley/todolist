@@ -3,17 +3,20 @@
 // 团队创建表单组件
 // 提供实时验证、提交状态显示和用户友好的交互体验
 
-import { useState, useTransition } from 'react'
-import { createTeam } from '@/app/teams/create/actions'
+import { useState } from 'react'
+import { useTranslations } from 'next-intl'
+import { createTeam } from '@/app/[locale]/teams/create/actions'
 
 interface TeamCreateFormProps {
   className?: string
+  locale?: string
 }
 
-export default function TeamCreateForm({ className = '' }: TeamCreateFormProps) {
+export default function TeamCreateForm({ className = '', locale = 'zh' }: TeamCreateFormProps) {
+  const t = useTranslations('teams')
   const [teamName, setTeamName] = useState('')
   const [validationError, setValidationError] = useState('')
-  const [isPending, startTransition] = useTransition()
+  const [isPending, setIsPending] = useState(false)
   
   // 实时验证团队名称
   const validateTeamName = (name: string) => {
@@ -42,36 +45,30 @@ export default function TeamCreateForm({ className = '' }: TeamCreateFormProps) 
     setValidationError(error)
   }
   
-  // 处理表单提交
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    
+  // 处理表单提交前验证
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     // 最终验证
     const error = validateTeamName(teamName)
     if (error) {
+      e.preventDefault()
       setValidationError(error)
       return
     }
     
-    // 创建FormData并提交
-    const formData = new FormData()
-    formData.append('name', teamName.trim())
-    
-    startTransition(async () => {
-      await createTeam(formData)
-    })
+    setIsPending(true)
   }
   
   const isValid = teamName.trim().length >= 2 && teamName.trim().length <= 50 && !validationError
   
   return (
-    <form onSubmit={handleSubmit} className={`space-y-6 ${className}`}>
+    <form action={createTeam} onSubmit={handleSubmit} className={`space-y-6 ${className}`}>
+      <input type="hidden" name="locale" value={locale} />
       <div>
         <label
           htmlFor="name"
           className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
         >
-          团队名称
+          {t('teamName')}
         </label>
         <div className="relative">
           <input
@@ -87,7 +84,7 @@ export default function TeamCreateForm({ className = '' }: TeamCreateFormProps) 
                 ? 'border-green-300 focus:ring-green-500 focus:border-green-500'
                 : 'border-gray-300'
             }`}
-            placeholder="我的超棒团队"
+            placeholder={t('teamNamePlaceholder')}
             required
             disabled={isPending}
             autoComplete="off"
@@ -111,10 +108,10 @@ export default function TeamCreateForm({ className = '' }: TeamCreateFormProps) 
           <div className="text-xs">
             {validationError ? (
               <span className="text-red-600 dark:text-red-400">{validationError}</span>
-            ) : (
-              <span className="text-gray-500 dark:text-gray-400">
-                团队名称长度应在2-50个字符之间
-              </span>
+              ) : (
+                <span className="text-gray-500 dark:text-gray-400">
+                  {t('teamNameLengthHint')}
+                </span>
             )}
           </div>
           <span className={`text-xs ${
@@ -137,10 +134,10 @@ export default function TeamCreateForm({ className = '' }: TeamCreateFormProps) 
         {isPending ? (
           <div className="flex items-center justify-center space-x-2">
             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <span>创建中...</span>
+            <span>{t('creating')}</span>
           </div>
         ) : (
-          '创建团队'
+          t('createTeam')
         )}
       </button>
       
@@ -148,7 +145,7 @@ export default function TeamCreateForm({ className = '' }: TeamCreateFormProps) 
       {isPending && (
         <div className="text-center">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            正在创建团队，请稍候...
+            {t('creatingTeamHint')}
           </p>
         </div>
       )}

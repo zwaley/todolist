@@ -1,28 +1,30 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-export const createClient = (cookieStore: ReturnType<typeof cookies>) => {
+export async function createClient(cookieStore?: any) {
+  const cookieStoreToUse = cookieStore || await cookies()
+  
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         async get(name: string) {
-          return (await cookieStore.get(name))?.value
+          return cookieStoreToUse.get(name)?.value
         },
-        set(name: string, value: string, options: CookieOptions) {
+        async set(name: string, value: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value, ...options })
-          } catch (error) {
+            cookieStoreToUse.set(name, value, options)
+          } catch {
             // The `set` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
           }
         },
-        remove(name: string, options: CookieOptions) {
+        async remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value: '', ...options })
-          } catch (error) {
+            cookieStoreToUse.set(name, '', options)
+          } catch {
             // The `delete` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
@@ -32,3 +34,6 @@ export const createClient = (cookieStore: ReturnType<typeof cookies>) => {
     }
   )
 }
+
+// 向后兼容的导出
+export const createSupabaseServerClient = createClient

@@ -1,9 +1,13 @@
+const withNextIntl = require('next-intl/plugin')(
+  // 指向 i18n 配置文件的路径
+  './src/i18n.ts'
+)
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // 实验性功能
   experimental: {
-    // 启用 App Router（Next.js 13+）
-    appDir: true,
+    // App Router 在 Next.js 13+ 中默认启用，无需配置
   },
 
   // 图片优化配置
@@ -89,7 +93,7 @@ const nextConfig = {
   },
 
   // 输出配置
-  output: 'standalone', // 用于 Docker 部署
+  // output: 'standalone', // 用于 Docker 部署（开发模式下注释掉）
 
   // 压缩配置
   compress: true,
@@ -100,8 +104,7 @@ const nextConfig = {
   // 严格模式
   reactStrictMode: true,
 
-  // SWC 最小化器配置
-  swcMinify: true,
+  // SWC 最小化器在 Next.js 13+ 中默认启用
 };
 
-module.exports = nextConfig;
+module.exports = withNextIntl(nextConfig);

@@ -1,8 +1,25 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import createIntlMiddleware from 'next-intl/middleware'
+import { locales, defaultLocale } from './i18n'
+
+// 创建国际化中间件
+const intlMiddleware = createIntlMiddleware({
+  locales,
+  defaultLocale,
+  localeDetection: true
+})
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
+  // 首先处理国际化路由
+  const intlResponse = intlMiddleware(request)
+  
+  // 如果国际化中间件返回了重定向，直接返回
+  if (intlResponse && intlResponse.status !== 200) {
+    return intlResponse
+  }
+  
+  let response = intlResponse || NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -69,10 +86,13 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
+     * - api routes
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - other static assets
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next|_vercel|favicon.ico|.*\\..*).*)',
+    '/'
   ],
 }
