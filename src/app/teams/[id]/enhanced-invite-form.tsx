@@ -11,7 +11,8 @@ interface EnhancedInviteFormProps {
 
 /**
  * 增强的团队成员邀请表单组件
- * 支持通过邮箱或用户名邀请新成员
+ * 支持通过邮箱、用户名或昵称邀请新成员
+ * 昵称支持中文等多种字符，提供更友好的邀请体验
  */
 export default function EnhancedInviteForm({ teamId, className }: EnhancedInviteFormProps) {
   const [identifier, setIdentifier] = useState('')
@@ -22,7 +23,7 @@ export default function EnhancedInviteForm({ teamId, className }: EnhancedInvite
   // 验证输入格式
   const validateIdentifier = (value: string) => {
     if (!value.trim()) {
-      return '请输入邮箱地址或用户名'
+      return '请输入邮箱地址、用户名或昵称'
     }
     
     const isEmail = value.includes('@')
@@ -32,15 +33,9 @@ export default function EnhancedInviteForm({ teamId, className }: EnhancedInvite
       if (!emailRegex.test(value)) {
         return '请输入有效的邮箱地址'
       }
-    } else {
-      // 用户名验证
-      if (value.length < 3) {
-        return '用户名至少需要3个字符'
-      }
-      if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
-        return '用户名只能包含字母、数字、下划线和连字符'
-      }
     }
+    // 对于用户名和昵称，我们不进行严格的格式验证
+    // 因为昵称可能包含中文、空格等字符
     
     return ''
   }
@@ -78,18 +73,52 @@ export default function EnhancedInviteForm({ teamId, className }: EnhancedInvite
     
     startTransition(async () => {
       try {
-        await inviteMember(teamId, identifier.trim())
-        setSuccessMessage(`成功邀请 ${identifier.trim()} 加入团队！`)
-        setIdentifier('')
+        const result = await inviteMember(teamId, identifier.trim())
+        if (result.success) {
+          setSuccessMessage(result.message || `成功邀请 ${identifier.trim()} 加入团队！`)
+          setIdentifier('')
+          // 刷新页面以显示新成员
+          setTimeout(() => window.location.reload(), 2000)
+        }
       } catch (error: any) {
-        setValidationError(error.message || '邀请失败，请稍后重试')
+        console.error('邀请错误:', error)
+        
+        // 解析错误消息格式：ERROR_CODE|用户友好消息
+        let userMessage = '邀请失败，请稍后重试'
+        
+        if (error.message && error.message.includes('|')) {
+          const [errorCode, message] = error.message.split('|', 2)
+          userMessage = message || userMessage
+          
+          // 根据错误代码提供更具体的指导
+          switch (errorCode) {
+            case 'USER_NOT_FOUND':
+              userMessage += '\n\n💡 提示：\n• 请确认邮箱地址、用户名或昵称拼写正确\n• 确认该用户已注册账户\n• 可以尝试使用邮箱地址、用户名或昵称进行邀请'
+              break
+            case 'ALREADY_MEMBER':
+              userMessage += '\n\n💡 该用户已在团队中，无需重复邀请'
+              break
+            case 'INVALID_EMAIL':
+            case 'INVALID_USERNAME':
+            case 'INVALID_INPUT':
+              // 这些错误通常在前端验证中已处理，但作为后备
+              break
+            case 'DATABASE_ERROR':
+              userMessage += '\n\n💡 请稍后重试，如果问题持续存在，请联系管理员'
+              break
+          }
+        } else {
+          userMessage = error.message || userMessage
+        }
+        
+        setValidationError(userMessage)
       }
     })
   }
 
   // 判断输入类型
   const inputType = identifier.includes('@') ? 'email' : 'text'
-  const placeholder = identifier.includes('@') ? '输入邮箱地址...' : '输入用户名或邮箱地址...'
+  const placeholder = identifier.includes('@') ? '输入邮箱地址...' : '输入用户名、昵称或邮箱地址...'
 
   return (
     <div className={cn('space-y-4', className)}>
@@ -169,6 +198,7 @@ export default function EnhancedInviteForm({ teamId, className }: EnhancedInvite
         <ul className="list-disc list-inside space-y-1 ml-4">
           <li>输入邮箱地址邀请已注册用户</li>
           <li>输入用户名邀请特定用户</li>
+          <li>输入昵称邀请用户（支持中文昵称）</li>
           <li>被邀请用户需要已在系统中注册</li>
         </ul>
       </div>

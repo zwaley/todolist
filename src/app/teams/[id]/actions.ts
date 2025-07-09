@@ -185,68 +185,130 @@ export async function inviteMember(teamId: string, identifier: string) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  // Get current user
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) {
-    throw new Error('Unauthorized')
-  }
-
-  let targetUserId: string | null = null
-
-  // 判断输入是邮箱还是用户名
-  const isEmail = identifier.includes('@')
-  
-  if (isEmail) {
-    // 通过邮箱查找用户
-    const { data, error: userError } = await supabase
-      .rpc('get_user_id_by_email', { email: identifier })
-
-    if (userError) {
-      throw new Error('Failed to find user by email')
+  try {
+    // Get current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      throw new Error('UNAUTHORIZED|您需要登录才能邀请成员')
     }
-    targetUserId = data
-  } else {
-    // 通过用户名查找用户
-    const { data, error: userError } = await supabase
-      .rpc('get_user_id_by_username', { target_username: identifier })
 
-    if (userError) {
-      throw new Error('Failed to find user by username')
+    // 验证输入
+    if (!identifier || identifier.trim() === '') {
+      throw new Error('INVALID_INPUT|请输入有效的邮箱地址或用户名')
     }
-    targetUserId = data
-  }
 
-  if (!targetUserId) {
+    const cleanIdentifier = identifier.trim()
+    let targetUserId: string | null = null
+    let searchType = ''
+
+    // 判断输入是邮箱还是用户名/昵称
+    const isEmail = cleanIdentifier.includes('@')
+    
     if (isEmail) {
-      throw new Error('User with this email not found')
+      // 验证邮箱格式
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(cleanIdentifier)) {
+        throw new Error('INVALID_EMAIL|请输入有效的邮箱地址格式')
+      }
+
+      // 通过邮箱查找用户
+      const { data, error: userError } = await supabase
+        .rpc('get_user_id_by_email', { email: cleanIdentifier })
+
+      if (userError) {
+        console.error('邮箱查找错误:', userError)
+        throw new Error('DATABASE_ERROR|查找用户时发生错误，请稍后重试')
+      }
+      
+      targetUserId = data
+      searchType = '邮箱'
+      
+      if (!targetUserId) {
+        throw new Error('USER_NOT_FOUND|未找到使用该邮箱注册的用户，请确认邮箱地址是否正确')
+      }
     } else {
-      throw new Error('User with this username not found')
+      // 非邮箱输入，尝试多种方式查找用户
+      // 1. 首先尝试通过用户名查找
+      const { data: usernameData, error: usernameError } = await supabase
+        .rpc('get_user_id_by_username', { username: cleanIdentifier })
+
+      if (usernameError) {
+        console.error('用户名查找错误:', usernameError)
+      } else if (usernameData) {
+        targetUserId = usernameData
+        searchType = '用户名'
+      }
+
+      // 2. 如果通过用户名没找到，尝试通过昵称查找
+      if (!targetUserId) {
+        const { data: displayNameData, error: displayNameError } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+          .eq('display_name', cleanIdentifier)
+          .single()
+
+        if (displayNameError && displayNameError.code !== 'PGRST116') {
+          console.error('昵称查找错误:', displayNameError)
+        } else if (displayNameData) {
+          targetUserId = displayNameData.user_id
+          searchType = '昵称'
+        }
+      }
+      
+      if (!targetUserId) {
+        throw new Error('USER_NOT_FOUND|未找到该用户名或昵称的用户，请确认输入是否正确')
+      }
     }
+
+    // 检查是否尝试邀请自己
+    if (targetUserId === user.id) {
+      throw new Error('SELF_INVITE|不能邀请自己加入团队')
+    }
+
+    // Check if user is already a member
+    const { data: existingMember, error: memberError } = await supabase
+      .from('team_members')
+      .select('team_id')
+      .eq('team_id', teamId)
+      .eq('user_id', targetUserId)
+      .single()
+
+    if (memberError && memberError.code !== 'PGRST116') {
+      console.error('检查成员状态错误:', memberError)
+      throw new Error('DATABASE_ERROR|检查用户状态时发生错误，请稍后重试')
+    }
+
+    if (existingMember) {
+      throw new Error('ALREADY_MEMBER|该用户已经是团队成员')
+    }
+
+    // Add user to team
+    const { error: insertError } = await supabase
+      .from('team_members')
+      .insert({
+        team_id: teamId,
+        user_id: targetUserId
+      })
+
+    if (insertError) {
+      console.error('添加成员错误:', insertError)
+      throw new Error('DATABASE_ERROR|添加团队成员时发生错误，请稍后重试')
+    }
+
+    revalidatePath(`/teams/${teamId}`)
+    return { 
+      success: true, 
+      message: `成功邀请${searchType}为 ${cleanIdentifier} 的用户加入团队` 
+    }
+    
+  } catch (error: any) {
+    // 如果错误已经是格式化的，直接抛出
+    if (error.message && error.message.includes('|')) {
+      throw error
+    }
+    
+    // 处理未预期的错误
+    console.error('邀请成员时发生未预期错误:', error)
+    throw new Error('UNEXPECTED_ERROR|邀请成员时发生未知错误，请稍后重试')
   }
-
-  // Check if user is already a member
-  const { data: existingMember, error: memberError } = await supabase
-    .from('team_members')
-    .select('team_id')
-    .eq('team_id', teamId)
-    .eq('user_id', targetUserId)
-    .single()
-
-  if (existingMember) {
-    throw new Error('User is already a member of this team')
-  }
-
-  // Add user to team
-  const { error: insertError } = await supabase
-    .from('team_members')
-    .insert({
-      team_id: teamId,
-      user_id: targetUserId
-    })
-
-  if (insertError) {
-    throw new Error('Failed to add member to team')
-  }
-
-  revalidatePath(`/teams/${teamId}`)
 }

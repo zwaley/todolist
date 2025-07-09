@@ -63,38 +63,46 @@ export default async function TeamPage({ params }: { params: { id: string } }) {
     pending: todos?.filter(todo => !todo.is_completed).length || 0
   }
 
-  // Fetch team members with user profile information
+  // Fetch team members
   const { data: members, error: membersError } = await supabase
     .from('team_members')
-    .select(`
-      user_id,
-      users:user_id (
-        email
-      )
-    `)
+    .select('user_id')
     .eq('team_id', teamId)
 
   if (membersError) {
     console.error('Error fetching team members:', membersError)
   }
 
-  // Get user profiles for all team members
+  // Get user profiles and auth user info for all team members
   const memberUserIds = members?.map(member => member.user_id) || []
-  const { data: userProfiles } = memberUserIds.length > 0 ? await supabase
-    .from('user_profiles')
-    .select('user_id, username, display_name, avatar_url')
-    .in('user_id', memberUserIds) : { data: [] }
+  
+  let userProfiles = []
+  let authUsers = []
+  
+  if (memberUserIds.length > 0) {
+    // Get user profiles
+    const { data: profiles } = await supabase
+      .from('user_profiles')
+      .select('user_id, username, display_name, avatar_url')
+      .in('user_id', memberUserIds)
+    userProfiles = profiles || []
+    
+    // Get auth user info (email)
+    const { data: users } = await supabase.auth.admin.listUsers()
+    authUsers = users?.users?.filter(user => memberUserIds.includes(user.id)) || []
+  }
 
   // Combine member data with profile information
   const membersWithProfiles = members?.map(member => {
     const profile = userProfiles?.find(p => p.user_id === member.user_id)
+    const authUser = authUsers?.find(u => u.id === member.user_id)
     return {
       ...member,
       profile: {
         username: profile?.username || '',
         display_name: profile?.display_name || '',
         avatar_url: profile?.avatar_url || '',
-        email: member.users?.email || ''
+        email: authUser?.email || ''
       }
     }
   }) || []

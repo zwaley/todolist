@@ -1,562 +1,506 @@
-# 🚀 代码质量与可维护性改进建议
+# 代码质量和可维护性改进建议
 
-> 基于当前项目状态，提供具体的代码质量改进建议
+## 📋 当前项目状态评估
 
----
+### ✅ 已完成的优秀实践
+- **完整的错误处理**：邀请功能具有详细的错误分类和用户友好提示
+- **安全的数据库设计**：RLS策略正确实施，避免了无限递归问题
+- **模块化架构**：清晰的文件结构和组件分离
+- **类型安全**：使用 TypeScript 提供类型检查
+- **环境配置**：正确的环境变量管理
 
-## 📊 当前项目状态评估
+### 🔧 需要改进的领域
 
-### ✅ 已完成的改进
-- RLS策略无限递归问题已修复
-- 错误处理机制已建立
-- Next.js 15兼容性问题已解决
-- 团队创建和Todo功能正常工作
-- 统计数字显示功能正常
+## 1. 数据库层面改进
 
-### ⚠️ 待改进的问题
-- 邀请功能存在问题
-- 缺乏自动化测试
-- 代码注释不够完善
-- 性能优化空间
-- 用户体验可以进一步提升
-
----
-
-## 🎯 立即可实施的改进
-
-### 1. 代码注释和文档改进
-
-#### 当前问题
-- 复杂逻辑缺乏注释
-- API接口文档不完整
-- 组件使用说明不清晰
-
-#### 改进建议
-```typescript
-// ❌ 当前代码
-export async function createTeam(formData: FormData) {
-  const name = formData.get('name')?.toString()
-  // ...
-}
-
-// ✅ 改进后的代码
-/**
- * 创建新团队
- * @param formData 表单数据，包含团队名称
- * @returns 创建结果，包含团队ID或错误信息
- * @throws {Error} 当团队名称为空或数据库操作失败时
- */
-export async function createTeam(formData: FormData) {
-  // 1. 验证团队名称
-  const name = formData.get('name')?.toString()
-  
-  if (!name || name.trim() === '') {
-    // 返回用户友好的错误信息
-    const errorResult = handleError('表单验证', { message: '团队名称为空' })
-    // ...
-  }
-  // ...
-}
+### 1.1 数据库函数优化
+```sql
+-- 当前函数可以添加更好的错误处理和日志记录
+CREATE OR REPLACE FUNCTION get_user_id_by_email(email text)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    user_id_result text;
+    function_name text := 'get_user_id_by_email';
+BEGIN
+    -- 添加输入验证
+    IF email IS NULL OR email = '' THEN
+        RAISE LOG 'Function %: Invalid email parameter', function_name;
+        RETURN NULL;
+    END IF;
+    
+    -- 验证邮箱格式
+    IF email !~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' THEN
+        RAISE LOG 'Function %: Invalid email format: %', function_name, email;
+        RETURN NULL;
+    END IF;
+    
+    SELECT id INTO user_id_result
+    FROM auth.users
+    WHERE auth.users.email = get_user_id_by_email.email
+    AND email_confirmed_at IS NOT NULL
+    LIMIT 1;
+    
+    -- 记录查询结果
+    IF user_id_result IS NOT NULL THEN
+        RAISE LOG 'Function %: Found user for email: %', function_name, email;
+    ELSE
+        RAISE LOG 'Function %: No user found for email: %', function_name, email;
+    END IF;
+    
+    RETURN user_id_result;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE LOG 'Function %: Error occurred: %', function_name, SQLERRM;
+        RETURN NULL;
+END;
+$$;
 ```
 
-### 2. 类型安全改进
+### 1.2 数据库索引优化
+```sql
+-- 为常用查询添加复合索引
+CREATE INDEX IF NOT EXISTS idx_team_members_team_user 
+    ON team_members(team_id, user_id);
 
-#### 当前问题
-- 部分地方使用any类型
-- 缺乏严格的类型检查
-- API响应类型不明确
+CREATE INDEX IF NOT EXISTS idx_auth_users_email_confirmed 
+    ON auth.users(email) 
+    WHERE email_confirmed_at IS NOT NULL;
 
-#### 改进建议
+-- 为用户资料表添加全文搜索索引
+CREATE INDEX IF NOT EXISTS idx_user_profiles_search 
+    ON user_profiles USING gin(to_tsvector('english', 
+        COALESCE(username, '') || ' ' || COALESCE(display_name, '')));
+```
+
+## 2. 前端代码改进
+
+### 2.1 类型安全增强
 ```typescript
-// ✅ 定义明确的类型接口
-interface Team {
-  id: string;
-  name: string;
-  created_by: string;
-  created_at: string;
-  invite_code?: string;
+// 创建严格的类型定义
+// src/types/invite.ts
+export interface InviteRequest {
+  identifier: string;
+  type: 'email' | 'username';
 }
 
-interface TeamMember {
-  id: string;
-  team_id: string;
-  user_id: string;
-  joined_at: string;
-  role: 'owner' | 'member';
-}
-
-interface CreateTeamResult {
+export interface InviteResponse {
   success: boolean;
-  team?: Team;
-  error?: string;
+  message: string;
+  errorCode?: string;
 }
 
-// ✅ 使用严格类型的函数
-export async function createTeam(formData: FormData): Promise<CreateTeamResult> {
-  // 实现代码
-}
-```
-
-### 3. 错误处理标准化
-
-#### 当前问题
-- 错误处理不一致
-- 用户看到的错误信息不够友好
-- 缺乏错误恢复机制
-
-#### 改进建议
-```typescript
-// ✅ 统一的错误处理类型
-interface AppError {
+export interface InviteError {
   code: string;
   message: string;
-  userMessage: string;
-  context?: Record<string, any>;
-  timestamp: string;
+  details?: string;
 }
 
-// ✅ 错误处理工具函数
-export function createAppError(
-  code: string,
-  message: string,
-  userMessage: string,
-  context?: Record<string, any>
-): AppError {
-  return {
-    code,
-    message,
-    userMessage,
-    context,
-    timestamp: new Date().toISOString()
-  };
-}
-
-// ✅ 在组件中使用
-const handleTeamCreation = async (formData: FormData) => {
-  try {
-    const result = await createTeam(formData);
-    if (!result.success) {
-      setError(result.error || '创建团队失败');
-      return;
-    }
-    // 成功处理
-  } catch (error) {
-    const appError = createAppError(
-      'TEAM_CREATION_FAILED',
-      error.message,
-      '创建团队时发生错误，请稍后重试',
-      { formData: Object.fromEntries(formData) }
-    );
-    setError(appError.userMessage);
-  }
-};
+// 使用联合类型确保错误处理的完整性
+export type InviteErrorCode = 
+  | 'UNAUTHORIZED'
+  | 'INVALID_INPUT'
+  | 'USER_NOT_FOUND'
+  | 'ALREADY_MEMBER'
+  | 'CANNOT_INVITE_SELF'
+  | 'DATABASE_ERROR';
 ```
 
----
-
-## 🏗️ 架构改进建议
-
-### 1. 组件结构优化
-
-#### 当前问题
-- 组件职责不够单一
-- 状态管理分散
-- 可复用性不高
-
-#### 改进建议
+### 2.2 错误处理标准化
 ```typescript
-// ✅ 拆分大组件为小组件
-// components/team/TeamForm.tsx - 专门处理表单
-// components/team/TeamList.tsx - 专门显示列表
-// components/team/TeamMemberList.tsx - 专门显示成员
-// components/ui/Button.tsx - 通用按钮组件
-// components/ui/Input.tsx - 通用输入组件
+// src/lib/error-handler.ts
+export class InviteError extends Error {
+  constructor(
+    public code: InviteErrorCode,
+    message: string,
+    public details?: string
+  ) {
+    super(message);
+    this.name = 'InviteError';
+  }
+}
 
-// ✅ 使用自定义Hook管理状态
-export function useTeamManagement() {
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const createTeam = async (name: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      // 创建逻辑
-    } catch (err) {
-      setError('创建失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return { teams, loading, error, createTeam };
+export function parseInviteError(error: unknown): InviteError {
+  if (error instanceof InviteError) {
+    return error;
+  }
+  
+  if (typeof error === 'string' && error.includes('|')) {
+    const [code, message] = error.split('|', 2);
+    return new InviteError(code as InviteErrorCode, message);
+  }
+  
+  return new InviteError('DATABASE_ERROR', '未知错误，请稍后重试');
 }
 ```
 
-### 2. 数据层改进
-
-#### 当前问题
-- 数据获取逻辑分散在组件中
-- 缺乏数据缓存机制
-- API调用没有统一管理
-
-#### 改进建议
+### 2.3 组件性能优化
 ```typescript
-// ✅ 创建数据访问层
-// lib/api/teams.ts
-export class TeamsAPI {
-  private supabase: SupabaseClient;
+// 使用 React.memo 和 useMemo 优化性能
+import React, { memo, useMemo, useCallback } from 'react';
 
-  constructor(supabase: SupabaseClient) {
-    this.supabase = supabase;
-  }
+interface EnhancedInviteFormProps {
+  teamId: string;
+  onInviteSuccess?: (message: string) => void;
+  onInviteError?: (error: InviteError) => void;
+}
 
-  async createTeam(name: string): Promise<CreateTeamResult> {
+export const EnhancedInviteForm = memo<EnhancedInviteFormProps>(({ 
+  teamId, 
+  onInviteSuccess, 
+  onInviteError 
+}) => {
+  // 使用 useCallback 避免不必要的重渲染
+  const handleSubmit = useCallback(async (formData: FormData) => {
     try {
-      const { data, error } = await this.supabase
-        .from('teams')
-        .insert({ name })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return { success: true, team: data };
+      const result = await inviteMember(teamId, formData);
+      onInviteSuccess?.(result.message);
     } catch (error) {
-      return { success: false, error: error.message };
+      const inviteError = parseInviteError(error);
+      onInviteError?.(inviteError);
     }
-  }
-
-  async getTeams(): Promise<Team[]> {
-    // 实现逻辑
-  }
-}
-
-// ✅ 使用React Query进行数据管理
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
-export function useTeams() {
-  return useQuery({
-    queryKey: ['teams'],
-    queryFn: () => teamsAPI.getTeams(),
-  });
-}
-
-export function useCreateTeam() {
-  const queryClient = useQueryClient();
+  }, [teamId, onInviteSuccess, onInviteError]);
   
-  return useMutation({
-    mutationFn: (name: string) => teamsAPI.createTeam(name),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['teams'] });
-    },
-  });
-}
-```
-
----
-
-## 🧪 测试策略
-
-### 1. 单元测试
-
-```typescript
-// __tests__/lib/api/teams.test.ts
-import { TeamsAPI } from '@/lib/api/teams';
-import { createMockSupabaseClient } from '@/test-utils/supabase-mock';
-
-describe('TeamsAPI', () => {
-  let teamsAPI: TeamsAPI;
-  let mockSupabase: any;
-
-  beforeEach(() => {
-    mockSupabase = createMockSupabaseClient();
-    teamsAPI = new TeamsAPI(mockSupabase);
-  });
-
-  describe('createTeam', () => {
-    it('should create team successfully', async () => {
-      const mockTeam = { id: '1', name: 'Test Team' };
-      mockSupabase.from.mockReturnValue({
-        insert: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({ data: mockTeam, error: null })
-          })
-        })
-      });
-
-      const result = await teamsAPI.createTeam('Test Team');
-      
-      expect(result.success).toBe(true);
-      expect(result.team).toEqual(mockTeam);
-    });
-
-    it('should handle creation error', async () => {
-      mockSupabase.from.mockReturnValue({
-        insert: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({ 
-              data: null, 
-              error: { message: 'Database error' } 
-            })
-          })
-        })
-      });
-
-      const result = await teamsAPI.createTeam('Test Team');
-      
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Database error');
-    });
-  });
-});
-```
-
-### 2. 集成测试
-
-```typescript
-// __tests__/integration/team-creation.test.ts
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { TeamCreateForm } from '@/components/TeamCreateForm';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-describe('Team Creation Integration', () => {
-  it('should create team and update UI', async () => {
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <TeamCreateForm />
-      </QueryClientProvider>
-    );
-
-    const input = screen.getByLabelText('团队名称');
-    const button = screen.getByRole('button', { name: '创建团队' });
-
-    fireEvent.change(input, { target: { value: 'New Team' } });
-    fireEvent.click(button);
-
-    await waitFor(() => {
-      expect(screen.getByText('团队创建成功')).toBeInTheDocument();
-    });
-  });
-});
-```
-
----
-
-## 🎨 用户体验改进
-
-### 1. 加载状态改进
-
-```typescript
-// ✅ 更好的加载状态
-function TeamList() {
-  const { data: teams, isLoading, error } = useTeams();
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-3 bg-gray-200 rounded w-1/2 mt-2"></div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-red-600 p-4 border border-red-200 rounded">
-        <p>加载团队列表失败</p>
-        <button onClick={() => refetch()} className="mt-2 text-blue-600">
-          重试
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      {teams?.map(team => (
-        <TeamCard key={team.id} team={team} />
-      ))}
-    </div>
-  );
-}
-```
-
-### 2. 表单验证改进
-
-```typescript
-// ✅ 实时表单验证
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-
-const teamSchema = z.object({
-  name: z.string()
-    .min(1, '团队名称不能为空')
-    .max(50, '团队名称不能超过50个字符')
-    .regex(/^[\u4e00-\u9fa5a-zA-Z0-9\s]+$/, '团队名称只能包含中文、英文、数字和空格'),
-});
-
-type TeamFormData = z.infer<typeof teamSchema>;
-
-function TeamCreateForm() {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<TeamFormData>({
-    resolver: zodResolver(teamSchema),
-  });
-
-  const createTeamMutation = useCreateTeam();
-
-  const onSubmit = async (data: TeamFormData) => {
-    await createTeamMutation.mutateAsync(data.name);
-  };
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium">
-          团队名称
-        </label>
-        <input
-          {...register('name')}
-          type="text"
-          className={`mt-1 block w-full rounded-md border ${
-            errors.name ? 'border-red-300' : 'border-gray-300'
-          }`}
-          placeholder="输入团队名称"
-        />
-        {errors.name && (
-          <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-        )}
-      </div>
-      
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-      >
-        {isSubmitting ? '创建中...' : '创建团队'}
-      </button>
-    </form>
-  );
-}
-```
-
----
-
-## 🔧 性能优化
-
-### 1. 组件优化
-
-```typescript
-// ✅ 使用React.memo优化重渲染
-import { memo } from 'react';
-
-interface TeamCardProps {
-  team: Team;
-  onEdit?: (team: Team) => void;
-}
-
-export const TeamCard = memo<TeamCardProps>(({ team, onEdit }) => {
-  return (
-    <div className="border rounded-lg p-4">
-      <h3 className="font-semibold">{team.name}</h3>
-      <p className="text-gray-600">创建于 {formatDate(team.created_at)}</p>
-      {onEdit && (
-        <button onClick={() => onEdit(team)} className="mt-2 text-blue-600">
-          编辑
-        </button>
-      )}
-    </div>
-  );
-});
-
-TeamCard.displayName = 'TeamCard';
-```
-
-### 2. 数据获取优化
-
-```typescript
-// ✅ 使用React Query的预取和缓存
-export function useTeamDetails(teamId: string) {
-  const queryClient = useQueryClient();
+  // 使用 useMemo 缓存计算结果
+  const validationRules = useMemo(() => ({
+    email: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
+    username: /^[a-zA-Z0-9_]{3,20}$/
+  }), []);
   
-  return useQuery({
-    queryKey: ['team', teamId],
-    queryFn: () => teamsAPI.getTeamDetails(teamId),
-    staleTime: 5 * 60 * 1000, // 5分钟内不重新获取
-    cacheTime: 10 * 60 * 1000, // 缓存10分钟
-    onSuccess: (data) => {
-      // 预取团队成员数据
-      queryClient.prefetchQuery({
-        queryKey: ['team-members', teamId],
-        queryFn: () => teamsAPI.getTeamMembers(teamId),
-      });
-    },
-  });
+  // 组件实现...
+});
+```
+
+## 3. 安全性增强
+
+### 3.1 输入验证和清理
+```typescript
+// src/lib/validation.ts
+import DOMPurify from 'dompurify';
+
+export function sanitizeInput(input: string): string {
+  return DOMPurify.sanitize(input.trim());
+}
+
+export function validateEmail(email: string): boolean {
+  const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+  return emailRegex.test(email) && email.length <= 254;
+}
+
+export function validateUsername(username: string): boolean {
+  const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+  return usernameRegex.test(username);
+}
+
+export function validateTeamId(teamId: string): boolean {
+  return /^\d+$/.test(teamId) && parseInt(teamId) > 0;
 }
 ```
 
+### 3.2 速率限制
+```typescript
+// src/lib/rate-limiter.ts
+interface RateLimitConfig {
+  maxAttempts: number;
+  windowMs: number;
+}
+
+class RateLimiter {
+  private attempts = new Map<string, number[]>();
+  
+  constructor(private config: RateLimitConfig) {}
+  
+  isAllowed(identifier: string): boolean {
+    const now = Date.now();
+    const userAttempts = this.attempts.get(identifier) || [];
+    
+    // 清理过期的尝试记录
+    const validAttempts = userAttempts.filter(
+      timestamp => now - timestamp < this.config.windowMs
+    );
+    
+    if (validAttempts.length >= this.config.maxAttempts) {
+      return false;
+    }
+    
+    validAttempts.push(now);
+    this.attempts.set(identifier, validAttempts);
+    return true;
+  }
+}
+
+export const inviteRateLimiter = new RateLimiter({
+  maxAttempts: 5,
+  windowMs: 60000 // 1分钟
+});
+```
+
+## 4. 测试覆盖
+
+### 4.1 单元测试示例
+```typescript
+// __tests__/invite.test.ts
+import { describe, it, expect, vi } from 'vitest';
+import { inviteMember } from '../src/app/teams/[id]/actions';
+import { createClient } from '@supabase/supabase-js';
+
+// Mock Supabase
+vi.mock('@supabase/supabase-js');
+
+describe('inviteMember', () => {
+  it('should successfully invite user by email', async () => {
+    const mockSupabase = {
+      rpc: vi.fn().mockResolvedValue({ data: 'user-id', error: null }),
+      from: vi.fn().mockReturnValue({
+        insert: vi.fn().mockResolvedValue({ error: null })
+      })
+    };
+    
+    vi.mocked(createClient).mockReturnValue(mockSupabase as any);
+    
+    const formData = new FormData();
+    formData.append('identifier', 'test@example.com');
+    
+    const result = await inviteMember('1', formData);
+    expect(result.success).toBe(true);
+  });
+  
+  it('should handle user not found error', async () => {
+    const mockSupabase = {
+      rpc: vi.fn().mockResolvedValue({ data: null, error: null })
+    };
+    
+    vi.mocked(createClient).mockReturnValue(mockSupabase as any);
+    
+    const formData = new FormData();
+    formData.append('identifier', 'nonexistent@example.com');
+    
+    await expect(inviteMember('1', formData))
+      .rejects.toThrow('USER_NOT_FOUND|用户不存在');
+  });
+});
+```
+
+### 4.2 集成测试
+```typescript
+// __tests__/integration/invite-flow.test.ts
+import { test, expect } from '@playwright/test';
+
+test.describe('邀请功能集成测试', () => {
+  test('完整的邀请流程', async ({ page }) => {
+    // 登录
+    await page.goto('/login');
+    await page.fill('[name="email"]', 'admin@example.com');
+    await page.fill('[name="password"]', 'password');
+    await page.click('button[type="submit"]');
+    
+    // 进入团队页面
+    await page.goto('/teams/1');
+    
+    // 邀请用户
+    await page.fill('[name="identifier"]', 'newuser@example.com');
+    await page.click('button:has-text("发送邀请")');
+    
+    // 验证成功消息
+    await expect(page.locator('.success-message'))
+      .toContainText('邀请发送成功');
+  });
+});
+```
+
+## 5. 性能监控
+
+### 5.1 数据库查询监控
+```sql
+-- 创建查询性能监控视图
+CREATE OR REPLACE VIEW invite_performance_stats AS
+SELECT 
+    schemaname,
+    tablename,
+    attname,
+    n_distinct,
+    correlation
+FROM pg_stats 
+WHERE tablename IN ('teams', 'team_members', 'user_profiles')
+ORDER BY tablename, attname;
+
+-- 监控慢查询
+SELECT 
+    query,
+    calls,
+    total_time,
+    mean_time,
+    rows
+FROM pg_stat_statements 
+WHERE query LIKE '%team_members%' 
+ORDER BY mean_time DESC;
+```
+
+### 5.2 前端性能监控
+```typescript
+// src/lib/performance.ts
+export class PerformanceMonitor {
+  static measureInviteAction(action: string) {
+    return function(target: any, propertyName: string, descriptor: PropertyDescriptor) {
+      const method = descriptor.value;
+      
+      descriptor.value = async function(...args: any[]) {
+        const start = performance.now();
+        
+        try {
+          const result = await method.apply(this, args);
+          const duration = performance.now() - start;
+          
+          // 记录性能指标
+          console.log(`${action} completed in ${duration.toFixed(2)}ms`);
+          
+          // 发送到分析服务
+          if (duration > 1000) {
+            console.warn(`Slow ${action}: ${duration.toFixed(2)}ms`);
+          }
+          
+          return result;
+        } catch (error) {
+          const duration = performance.now() - start;
+          console.error(`${action} failed after ${duration.toFixed(2)}ms:`, error);
+          throw error;
+        }
+      };
+    };
+  }
+}
+```
+
+## 6. 文档和维护
+
+### 6.1 API 文档
+```typescript
+/**
+ * 邀请用户加入团队
+ * 
+ * @param teamId - 团队ID
+ * @param formData - 包含邀请信息的表单数据
+ * @param formData.identifier - 用户邮箱或用户名
+ * 
+ * @returns Promise<InviteResponse> 邀请结果
+ * 
+ * @throws {InviteError} 当邀请失败时抛出错误
+ * 
+ * @example
+ * ```typescript
+ * const formData = new FormData();
+ * formData.append('identifier', 'user@example.com');
+ * 
+ * try {
+ *   const result = await inviteMember('123', formData);
+ *   console.log(result.message);
+ * } catch (error) {
+ *   if (error instanceof InviteError) {
+ *     console.error(`邀请失败: ${error.message}`);
+ *   }
+ * }
+ * ```
+ */
+export async function inviteMember(
+  teamId: string, 
+  formData: FormData
+): Promise<InviteResponse>
+```
+
+### 6.2 变更日志
+```markdown
+# CHANGELOG.md
+
+## [1.2.0] - 2024-01-XX
+
+### Added
+- 邀请功能支持用户名和邮箱两种方式
+- 详细的错误处理和用户友好提示
+- 数据库函数性能优化
+- 完整的类型安全支持
+
+### Fixed
+- RLS策略无限递归问题
+- 邀请功能数据库函数缺失
+- 错误处理不完善
+
+### Security
+- 增强输入验证和清理
+- 实施速率限制
+- 改进权限检查
+```
+
+## 7. 部署和运维
+
+### 7.1 健康检查端点
+```typescript
+// src/app/api/health/route.ts
+import { createClient } from '@/lib/supabase/server';
+
+export async function GET() {
+  try {
+    const supabase = createClient();
+    
+    // 检查数据库连接
+    const { data, error } = await supabase
+      .from('teams')
+      .select('id')
+      .limit(1);
+    
+    if (error) {
+      return Response.json(
+        { status: 'unhealthy', error: error.message },
+        { status: 503 }
+      );
+    }
+    
+    // 检查关键函数
+    const { error: funcError } = await supabase
+      .rpc('get_user_id_by_email', { email: 'health@check.com' });
+    
+    if (funcError && !funcError.message.includes('does not exist')) {
+      return Response.json(
+        { status: 'degraded', warning: 'Some functions unavailable' },
+        { status: 200 }
+      );
+    }
+    
+    return Response.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version
+    });
+  } catch (error) {
+    return Response.json(
+      { status: 'unhealthy', error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+## 8. 立即行动项
+
+### 高优先级（本周完成）
+1. ✅ 执行 `fix-missing-components.sql` 补充缺失组件
+2. 🔧 实施输入验证和清理
+3. 📝 添加关键函数的单元测试
+4. 🔍 设置基本的错误监控
+
+### 中优先级（本月完成）
+1. 🚀 优化数据库查询性能
+2. 🛡️ 实施速率限制
+3. 📊 添加性能监控
+4. 📚 完善API文档
+
+### 低优先级（下个版本）
+1. 🧪 完整的集成测试套件
+2. 📈 高级分析和监控
+3. 🔄 自动化部署流程
+4. 🌐 国际化支持
+
 ---
 
-## 📋 实施计划
-
-### 第一阶段（本周）
-- [ ] 修复邀请功能问题
-- [ ] 添加详细的代码注释
-- [ ] 改进错误处理机制
-- [ ] 创建基本的类型定义
-
-### 第二阶段（下周）
-- [ ] 重构组件结构
-- [ ] 添加表单验证
-- [ ] 改进加载状态
-- [ ] 优化用户体验
-
-### 第三阶段（下下周）
-- [ ] 添加单元测试
-- [ ] 实施性能优化
-- [ ] 添加集成测试
-- [ ] 完善文档
-
----
-
-## 🎯 成功指标
-
-### 代码质量指标
-- [ ] 测试覆盖率 > 80%
-- [ ] TypeScript严格模式无错误
-- [ ] ESLint无警告
-- [ ] 所有组件都有PropTypes或TypeScript类型
-
-### 用户体验指标
-- [ ] 页面加载时间 < 2秒
-- [ ] 交互响应时间 < 100ms
-- [ ] 错误恢复机制完善
-- [ ] 用户操作流程顺畅
-
-### 可维护性指标
-- [ ] 组件复用率 > 60%
-- [ ] 代码重复率 < 10%
-- [ ] 文档覆盖率 > 90%
-- [ ] 新功能开发时间减少30%
-
----
-
-*最后更新：2025年7月9日*
-*状态：待实施*
-*优先级：高*
+**总结**：当前代码质量已经很好，主要需要补充缺失的数据库组件，然后逐步实施上述改进建议。重点关注安全性、性能和可维护性三个方面。
