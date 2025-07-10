@@ -26,19 +26,13 @@ export default function EnhancedInviteForm({ teamId, locale }: EnhancedInviteFor
     }
 
     startTransition(async () => {
-      try {
-        const result = await inviteMember(teamId, identifier.trim(), locale)
-        if (result.success) {
-          setMessage(result.message)
-          setMessageType('success')
-          setIdentifier('')
-        }
-      } catch (error: any) {
-        // 解析错误消息
-        const errorMessage = error.message.includes('|') 
-          ? error.message.split('|')[1] 
-          : error.message
-        setMessage(errorMessage)
+      const result = await inviteMember(teamId, identifier.trim(), locale)
+      if (result.success) {
+        setMessage(result.message || t('invitationSuccessful'))
+        setMessageType('success')
+        setIdentifier('')
+      } else {
+        setMessage(result.error || t('invitationFailedUnknown'))
         setMessageType('error')
       }
     })
