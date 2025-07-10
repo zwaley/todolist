@@ -20,6 +20,7 @@
     "myPrivateTodos": "My Private Todos",
     "createTeam": "Create Team",
     "backToTeams": "← Back to Team List",
+    "backToTeamList": "Back to Team List",
     "backToHome": "← Back to Home",
     "personalSettings": "Personal Settings"
   },
@@ -52,7 +53,23 @@
       "lengthHint": "Team name should be between 2-50 characters"
     },
     "creating": "Creating...",
-    "createTeamDescription": "Create a new team to collaborate on managing todos"
+    "createTeamDescription": "Create a new team to collaborate on managing todos",
+    "removeMember": "Remove Member",
+    "leaveTeam": "Leave Team",
+    "confirmRemoveMember": "Confirm remove this member?",
+    "confirmLeaveTeam": "Confirm leave this team?",
+    "teamCreator": "Creator",
+    "removing": "Removing...",
+    "leaving": "Leaving...",
+    "memberRemoved": "Member removed",
+    "leftTeam": "Left team",
+    "cannotRemoveSelf": "Cannot remove yourself",
+    "creatorCannotLeave": "Creator cannot leave team",
+    "memberActions": "Member Actions",
+    "confirmAction": "Confirm Action",
+    "removeConfirmMessage": "This will remove the member, are you sure?",
+    "leaveConfirmMessage": "This will leave the team, are you sure?",
+    "noEmailAvailable": "No email available"
   },
   "todos": {
     "addNewTodo": "Add a New Todo",
@@ -64,7 +81,9 @@
     "addPrivateTodoPlaceholder": "Add a private task for yourself...",
     "addNewPrivateTodo": "Add New Private Todo",
     "myPrivateTodos": "My Private Todos",
-    "addAbove": "Add one above!"
+    "addAbove": "Add one above!",
+    "add": "Add",
+    "todoPlaceholder": "What needs to be done?"
   },
   "invite": {
     "inviteNewMember": "Invite New Member",

@@ -12,7 +12,10 @@ export type Locale = (typeof locales)[number]
 export const defaultLocale: Locale = 'zh'
 
 // next-intl 配置
-export default getRequestConfig(async ({ locale }) => {
+export default getRequestConfig(async ({ requestLocale }) => {
+  // 获取当前请求的locale
+  const locale = await requestLocale
+  
   // 验证传入的语言是否支持
   if (!locales.includes(locale as Locale)) {
     notFound()

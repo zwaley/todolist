@@ -1,19 +1,18 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 import { useTranslations } from 'next-intl'
 import { signIn, signUp } from './actions'
 import { LanguageToggle } from '@/components/LanguageSwitcher'
 
 interface LoginPageProps {
-  searchParams: { message: string }
+  searchParams: Promise<{ message?: string }>
   params: Promise<{ locale: string }>
 }
 
 export default async function LoginPage({ searchParams, params }: LoginPageProps) {
   const { locale } = await params
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+  const resolvedSearchParams = await searchParams
+  const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -29,14 +28,14 @@ export default async function LoginPage({ searchParams, params }: LoginPageProps
       </div>
       
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
-        <LoginForm searchParams={searchParams} locale={locale} />
+        <LoginForm searchParams={resolvedSearchParams} locale={locale} />
       </div>
     </div>
   )
 }
 
 // 登录表单组件
-function LoginForm({ searchParams, locale }: { searchParams: { message: string }, locale: string }) {
+function LoginForm({ searchParams, locale }: { searchParams: { message?: string }, locale: string }) {
   const t = useTranslations('auth')
   
   return (

@@ -20,6 +20,7 @@
     "myPrivateTodos": "我的私人待办",
     "createTeam": "创建团队",
     "backToTeams": "返回团队列表",
+    "backToTeamList": "返回团队列表",
     "backToHome": "返回首页",
     "personalSettings": "个人设置"
   },
@@ -55,7 +56,23 @@
     "creating": "创建中...",
     "creatingTeamHint": "正在创建团队，请稍候...",
     "createTeam": "创建团队",
-    "createTeamDescription": "创建一个新的团队来协作管理待办事项"
+    "createTeamDescription": "创建一个新的团队来协作管理待办事项",
+    "removeMember": "移除成员",
+    "leaveTeam": "退出团队",
+    "confirmRemoveMember": "确认移除此成员？",
+    "confirmLeaveTeam": "确认退出此团队？",
+    "teamCreator": "创建者",
+    "removing": "移除中...",
+    "leaving": "退出中...",
+    "memberRemoved": "成员已移除",
+    "leftTeam": "已退出团队",
+    "cannotRemoveSelf": "不能移除自己",
+    "creatorCannotLeave": "创建者不能退出团队",
+    "memberActions": "成员操作",
+    "confirmAction": "确认操作",
+    "removeConfirmMessage": "此操作将移除该成员，确定继续吗？",
+    "leaveConfirmMessage": "此操作将退出团队，确定继续吗？",
+    "noEmailAvailable": "暂无邮箱"
   },
   "todos": {
     "addNewTodo": "添加新待办",
@@ -67,7 +84,9 @@
     "addPrivateTodoPlaceholder": "为自己添加一个私人任务...",
     "addNewPrivateTodo": "添加新的私人待办事项",
     "myPrivateTodos": "我的私人待办事项",
-    "addAbove": "在上方添加一个吧！"
+    "addAbove": "在上方添加一个吧！",
+    "add": "添加",
+    "todoPlaceholder": "需要做什么？"
   },
   "invite": {
     "inviteNewMember": "邀请新成员",

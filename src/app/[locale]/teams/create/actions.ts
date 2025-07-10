@@ -5,7 +5,6 @@
 // 调试版本：返回详细错误信息，而不是重定向
 
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation' // 保留 redirect 用于成功后跳转
 
@@ -22,7 +21,7 @@ interface ActionResult {
  * @returns 一个包含操作结果的对象
  */
 export async function createTeam(formData: FormData): Promise<ActionResult> {
-  const supabase = createClient()
+  const supabase = await createClient()
   const locale = formData.get('locale')?.toString() || 'zh'
 
   try {

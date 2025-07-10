@@ -1,9 +1,9 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-// 同步版本的 createClient，减少误用
-export function createClient() {
-  const cookieStore = cookies()
+// 异步版本的 createClient，适配 Next.js 15
+export async function createClient() {
+  const cookieStore = await cookies()
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

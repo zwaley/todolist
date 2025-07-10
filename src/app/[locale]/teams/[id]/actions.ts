@@ -13,7 +13,7 @@ export async function addTodo(formData: FormData) {
     return // Or handle the error appropriately
   }
 
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -36,7 +36,7 @@ export async function addTodo(formData: FormData) {
 }
 
 export async function joinTeamByInviteCode(inviteCode: string, locale: string = 'zh') {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Get current user
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -73,7 +73,7 @@ export async function joinTeamByInviteCode(inviteCode: string, locale: string = 
 }
 
 export async function getTeamInviteCode(teamId: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Get current user
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -100,7 +100,7 @@ export async function getTeamInviteCode(teamId: string) {
 }
 
 export async function regenerateInviteCode(teamId: string, locale: string = 'zh') {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Get current user
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -155,7 +155,7 @@ export async function toggleTodo(formData: FormData) {
     return
   }
 
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 验证用户是否已登录
   const { data: { user } } = await supabase.auth.getUser()
@@ -186,7 +186,7 @@ export async function deleteTodo(formData: FormData) {
     return
   }
 
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 验证用户是否已登录
   const { data: { user } } = await supabase.auth.getUser()
@@ -215,7 +215,7 @@ interface ActionResult {
 }
 
 export async function inviteMember(teamId: string, identifier: string, locale: string = 'zh'): Promise<ActionResult> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   try {
     // Get current user
@@ -343,5 +343,160 @@ export async function inviteMember(teamId: string, identifier: string, locale: s
     // 处理未预期的错误
     console.error('邀请成员时发生未预期错误:', error);
     return { success: false, error: `邀请成员时发生未知错误: ${error.message || '未知错误'}` };
+  }
+}
+
+/**
+ * 团队创建者删除成员功能
+ * @param teamId 团队ID
+ * @param memberUserId 要删除的成员用户ID
+ * @param locale 语言设置
+ * @returns 操作结果
+ */
+export async function removeMember(teamId: string, memberUserId: string, locale: string = 'zh'): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  try {
+    // 验证当前用户身份
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return { success: false, error: '您需要登录才能执行此操作' };
+    }
+
+    // 验证输入参数
+    if (!teamId || !memberUserId) {
+      return { success: false, error: '参数不完整' };
+    }
+
+    // 检查当前用户是否为团队创建者
+    const { data: team, error: teamError } = await supabase
+      .from('teams')
+      .select('created_by')
+      .eq('id', teamId)
+      .single();
+
+    if (teamError) {
+      console.error('获取团队信息错误:', teamError);
+      return { success: false, error: '获取团队信息失败，请稍后重试' };
+    }
+
+    if (!team || team.created_by !== user.id) {
+      return { success: false, error: '只有团队创建者才能删除成员' };
+    }
+
+    // 防止删除自己
+    if (memberUserId === user.id) {
+      return { success: false, error: '不能删除自己，如需解散团队请联系管理员' };
+    }
+
+    // 验证目标用户确实是团队成员
+    const { data: memberCheck, error: memberCheckError } = await supabase
+      .from('team_members')
+      .select('user_id')
+      .eq('team_id', teamId)
+      .eq('user_id', memberUserId)
+      .single();
+
+    if (memberCheckError || !memberCheck) {
+      return { success: false, error: '该用户不是团队成员' };
+    }
+
+    // 执行删除操作
+    const { error: deleteError } = await supabase
+      .from('team_members')
+      .delete()
+      .eq('team_id', teamId)
+      .eq('user_id', memberUserId);
+
+    if (deleteError) {
+      console.error('删除成员错误:', deleteError);
+      return { success: false, error: `删除成员失败: ${deleteError.message}` };
+    }
+
+    // 刷新页面数据
+    revalidatePath(`/${locale}/teams/${teamId}`);
+    return {
+      success: true,
+      message: '成员已成功移除'
+    };
+
+  } catch (error: any) {
+    console.error('删除成员时发生未预期错误:', error);
+    return { success: false, error: `删除成员时发生错误: ${error.message || '未知错误'}` };
+  }
+}
+
+/**
+ * 成员退出团队功能
+ * @param teamId 团队ID
+ * @param locale 语言设置
+ * @returns 操作结果
+ */
+export async function leaveTeam(teamId: string, locale: string = 'zh'): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  try {
+    // 验证当前用户身份
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return { success: false, error: '您需要登录才能执行此操作' };
+    }
+
+    // 验证输入参数
+    if (!teamId) {
+      return { success: false, error: '团队ID不能为空' };
+    }
+
+    // 检查用户是否为团队创建者
+    const { data: team, error: teamError } = await supabase
+      .from('teams')
+      .select('created_by')
+      .eq('id', teamId)
+      .single();
+
+    if (teamError) {
+      console.error('获取团队信息错误:', teamError);
+      return { success: false, error: '获取团队信息失败，请稍后重试' };
+    }
+
+    // 防止团队创建者退出
+    if (team && team.created_by === user.id) {
+      return { success: false, error: '团队创建者不能退出团队，如需解散团队请联系管理员' };
+    }
+
+    // 验证用户确实是团队成员
+    const { data: memberCheck, error: memberCheckError } = await supabase
+      .from('team_members')
+      .select('user_id')
+      .eq('team_id', teamId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (memberCheckError || !memberCheck) {
+      return { success: false, error: '您不是该团队的成员' };
+    }
+
+    // 执行退出操作
+    const { error: deleteError } = await supabase
+      .from('team_members')
+      .delete()
+      .eq('team_id', teamId)
+      .eq('user_id', user.id);
+
+    if (deleteError) {
+      console.error('退出团队错误:', deleteError);
+      return { success: false, error: `退出团队失败: ${deleteError.message}` };
+    }
+
+    // 退出成功后重定向到团队列表页面
+    revalidatePath(`/${locale}`);
+    return {
+      success: true,
+      message: '已成功退出团队'
+    };
+
+  } catch (error: any) {
+    console.error('退出团队时发生未预期错误:', error);
+    return { success: false, error: `退出团队时发生错误: ${error.message || '未知错误'}` };
   }
 }

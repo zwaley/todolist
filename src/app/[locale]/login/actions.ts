@@ -1,15 +1,13 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 export async function signIn(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const locale = formData.get('locale')?.toString() || 'zh'
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+  const supabase = await createClient()
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
@@ -28,8 +26,7 @@ export async function signUp(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const locale = formData.get('locale')?.toString() || 'zh'
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+  const supabase = await createClient()
 
   const { error } = await supabase.auth.signUp({
     email,

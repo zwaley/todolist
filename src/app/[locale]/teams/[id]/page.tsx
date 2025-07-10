@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -8,6 +7,7 @@ import EnhancedInviteForm from './enhanced-invite-form'
 import InviteCodeSection from './invite-code-section'
 import { TodoStatsBadge } from '@/components/todo-stats-badge'
 import { LanguageToggle } from '@/components/LanguageSwitcher'
+import TeamMemberActions from '@/components/TeamMemberActions'
 
 // This is a dynamic page, so we need to revalidate it to ensure fresh data.
 export const revalidate = 0
@@ -18,8 +18,7 @@ interface TeamPageProps {
 
 export default async function TeamPage({ params }: TeamPageProps) {
   const { id: teamId, locale } = await params
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+  const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -134,6 +133,8 @@ export default async function TeamPage({ params }: TeamPageProps) {
             members={membersWithProfiles}
             isTeamCreator={team.created_by === user.id}
             locale={locale}
+            currentUserId={user.id}
+            teamCreatorId={team.created_by}
           />
         </div>
       </main>
@@ -260,7 +261,7 @@ function TodoSection({ teamId, todos, locale }: {
 }
 
 // 团队成员部分
-function TeamMembersSection({ teamId, members, isTeamCreator, locale }: {
+function TeamMembersSection({ teamId, members, isTeamCreator, locale, currentUserId, teamCreatorId }: {
   teamId: string
   members: Array<{
     user_id: string
@@ -273,6 +274,8 @@ function TeamMembersSection({ teamId, members, isTeamCreator, locale }: {
   }>
   isTeamCreator: boolean
   locale: string
+  currentUserId: string
+  teamCreatorId: string
 }) {
   const t = useTranslations('teams')
   
@@ -297,7 +300,7 @@ function TeamMembersSection({ teamId, members, isTeamCreator, locale }: {
                   (member.profile.display_name || member.profile.username || member.profile.email)?.charAt(0).toUpperCase()
                 )}
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col flex-grow">
                 <span className="font-medium">
                   {member.profile.display_name || member.profile.username || t('unknownUser')}
                 </span>
@@ -305,6 +308,14 @@ function TeamMembersSection({ teamId, members, isTeamCreator, locale }: {
                   {member.profile.email || t('noEmailAvailable')}
                 </span>
               </div>
+              <TeamMemberActions 
+                  teamId={teamId}
+                  memberId={member.user_id}
+                  isCurrentUser={member.user_id === currentUserId}
+                  isTeamCreator={member.user_id === teamCreatorId}
+                  currentUserIsCreator={isTeamCreator}
+                  locale={locale}
+                />
             </div>
           ))
         ) : (
