@@ -1,12 +1,11 @@
 'use client'
 
 // 团队创建表单组件
-// 调试版本：能处理后端返回的详细错误信息
+// 提供实时验证、提交状态显示和用户友好的交互体验
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { createTeam, redirectToTeamPage } from '@/app/[locale]/teams/create/actions'
-import { useRouter } from 'next/navigation'
+import { createTeam } from '@/app/[locale]/teams/create/actions'
 
 interface TeamCreateFormProps {
   className?: string
@@ -15,62 +14,60 @@ interface TeamCreateFormProps {
 
 export default function TeamCreateForm({ className = '', locale = 'zh' }: TeamCreateFormProps) {
   const t = useTranslations('teams')
-  const router = useRouter() // 使用 useRouter 进行跳转
   const [teamName, setTeamName] = useState('')
   const [validationError, setValidationError] = useState('')
-  const [formError, setFormError] = useState<string | null>(null) // 新增：用于存储后端返回的错误
   const [isPending, setIsPending] = useState(false)
-
+  
+  // 实时验证团队名称
   const validateTeamName = (name: string) => {
-    if (!name.trim()) return '团队名称不能为空'
-    if (name.trim().length < 2) return '团队名称至少需要2个字符'
-    if (name.trim().length > 50) return '团队名称不能超过50个字符'
+    if (!name.trim()) {
+      return '团队名称不能为空'
+    }
+    if (name.trim().length < 2) {
+      return '团队名称至少需要2个字符'
+    }
+    if (name.trim().length > 50) {
+      return '团队名称不能超过50个字符'
+    }
     if (!/^[\u4e00-\u9fa5a-zA-Z0-9\s\-_]+$/.test(name.trim())) {
       return '团队名称只能包含中文、英文、数字、空格、连字符和下划线'
     }
     return ''
   }
-
+  
+  // 处理输入变化
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setTeamName(value)
-    setFormError(null) // 用户输入时清除后端错误
+    
+    // 实时验证
     const error = validateTeamName(value)
     setValidationError(error)
   }
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault() // 阻止表单默认提交
+  
+  // 处理表单提交前验证
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    // 最终验证
     const error = validateTeamName(teamName)
     if (error) {
+      e.preventDefault()
       setValidationError(error)
       return
     }
-
+    
     setIsPending(true)
-    setFormError(null)
-
-    const formData = new FormData(e.currentTarget)
-    const result = await createTeam(formData)
-
-    setIsPending(false)
-
-    if (result.success && result.teamId) {
-      // 成功，手动跳转
-      await redirectToTeamPage(result.teamId, locale)
-    } else {
-      // 失败，显示错误信息
-      setFormError(result.error || '发生未知错误')
-    }
   }
-
+  
   const isValid = teamName.trim().length >= 2 && teamName.trim().length <= 50 && !validationError
-
+  
   return (
-    <form onSubmit={handleSubmit} className={`space-y-6 ${className}`}>
+    <form action={createTeam} onSubmit={handleSubmit} className={`space-y-6 ${className}`}>
       <input type="hidden" name="locale" value={locale} />
       <div>
-        <label htmlFor="name" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+        <label
+          htmlFor="name"
+          className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+        >
           {t('teamName')}
         </label>
         <div className="relative">
@@ -93,6 +90,8 @@ export default function TeamCreateForm({ className = '', locale = 'zh' }: TeamCr
             autoComplete="off"
             maxLength={50}
           />
+          
+          {/* 验证状态图标 */}
           {teamName && (
             <div className="absolute inset-y-0 right-0 flex items-center pr-3">
               {validationError ? (
@@ -103,27 +102,26 @@ export default function TeamCreateForm({ className = '', locale = 'zh' }: TeamCr
             </div>
           )}
         </div>
+        
+        {/* 字符计数和验证错误 */}
         <div className="mt-1 flex justify-between items-start">
           <div className="text-xs">
             {validationError ? (
               <span className="text-red-600 dark:text-red-400">{validationError}</span>
-            ) : (
-              <span className="text-gray-500 dark:text-gray-400">{t('teamNameLengthHint')}</span>
+              ) : (
+                <span className="text-gray-500 dark:text-gray-400">
+                  {t('teamNameLengthHint')}
+                </span>
             )}
           </div>
-          <span className={`text-xs ${teamName.length > 45 ? 'text-orange-600' : 'text-gray-400'}`}>
+          <span className={`text-xs ${
+            teamName.length > 45 ? 'text-orange-600' : 'text-gray-400'
+          }`}>
             {teamName.length}/50
           </span>
         </div>
       </div>
-
-      {/* 新增：显示后端错误信息 */}
-      {formError && (
-        <div className="p-3 text-sm text-red-800 bg-red-100 border border-red-200 rounded-lg dark:bg-red-900 dark:text-red-300 dark:border-red-800">
-          <p><span className="font-medium">{t('creationFailed')}:</span> {formError}</p>
-        </div>
-      )}
-
+      
       <button
         type="submit"
         disabled={!isValid || isPending}
@@ -142,10 +140,13 @@ export default function TeamCreateForm({ className = '', locale = 'zh' }: TeamCr
           t('createTeam')
         )}
       </button>
-
+      
+      {/* 提交提示 */}
       {isPending && (
         <div className="text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-400">{t('creatingTeamHint')}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {t('creatingTeamHint')}
+          </p>
         </div>
       )}
     </form>

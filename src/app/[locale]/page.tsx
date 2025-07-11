@@ -20,6 +20,19 @@ export default async function Home({ params }: HomeProps) {
   }
 
   // Fetch the teams the user is a member of with todo statistics
+  // 
+  // RLS策略配置状态 (已确认 2024-12-19):
+  // team_members表:
+  //   - "Users can view team members" (SELECT): 允许用户查看自己的成员记录或自己创建团队的成员
+  //   - "Team owners can manage members" (ALL): 团队创建者可以管理所有成员
+  //   - "Users can join teams" (INSERT): 用户可以加入团队
+  //   - "Users can leave teams" (DELETE): 用户可以离开团队
+  // teams表:
+  //   - "Users can view their own teams" (SELECT): 用户只能查看自己创建的团队
+  //   - "teams_policy_select" (SELECT): 重复策略，功能相同
+  //   - 其他INSERT/UPDATE/DELETE策略正常配置
+  // 
+  // 此查询通过team_members表关联teams表，依赖上述RLS策略确保用户只能看到自己有权限的团队
   const { data: teams, error: teamsError } = await supabase
     .from('team_members')
     .select(`

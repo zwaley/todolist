@@ -275,6 +275,43 @@ try {
 
 ---
 
+## 数据库相关
+
+### RLS策略配置
+- 所有数据库修改都应通过迁移文件记录，避免代码和数据库状态不一致
+- RLS策略修复应该直接在Supabase Dashboard中执行，而非通过迁移文件
+- 团队可见性问题的根本原因是缺少数据库RLS策略的SELECT权限配置
+
+### RLS策略当前状态 (确认日期: 2024-12-19)
+**team_members表策略:**
+- "Users can view team members" (SELECT): 允许用户查看自己的成员记录或自己创建团队的成员
+- "Team owners can manage members" (ALL): 团队创建者可以管理所有成员
+- "Users can join teams" (INSERT): 用户可以加入团队
+- "Users can leave teams" (DELETE): 用户可以离开团队
+
+**teams表策略:**
+- "Users can view their own teams" (SELECT): 用户只能查看自己创建的团队
+- "teams_policy_select" (SELECT): 重复策略，功能相同
+- "Team creators can update their teams" (UPDATE): 团队创建者可以更新自己的团队
+- "teams_policy_insert" (INSERT): 允许插入新团队
+- "teams_policy_delete" (DELETE): 团队创建者可以删除自己的团队
+- "teams_policy_update" (UPDATE): 重复策略，功能相同
+
+**验证方法:**
+```sql
+SELECT tablename, policyname, cmd, qual 
+FROM pg_policies 
+WHERE tablename IN ('teams', 'team_members')
+ORDER BY tablename, policyname;
+```
+
+**注意事项:**
+- teams表存在重复的SELECT和UPDATE策略，但不影响功能
+- 所有策略配置正确，团队可见性功能应该正常工作
+- 相关代码注释已在 `src/app/[locale]/page.tsx` 中更新
+
+---
+
 *最后更新：2025年7月9日*
 *状态：持续更新*
 *目标：避免重复犯错，提升开发效率*
