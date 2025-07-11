@@ -68,12 +68,11 @@ export default async function TeamPage({ params }: TeamPageProps) {
     pending: todos?.filter(todo => !todo.is_completed).length || 0
   }
 
-  // Fetch team members (only accepted members)
+  // Fetch team members
   const { data: members, error: membersError } = await supabase
     .from('team_members')
     .select('user_id')
     .eq('team_id', teamId)
-    .eq('status', 'accepted')
 
   if (membersError) {
     console.error('Error fetching team members:', membersError)
