@@ -277,10 +277,105 @@ try {
 
 ## 数据库相关
 
+### 数据库管理最佳实践
+
+#### 核心原则："先检查，再行动"
+任何数据库相关的修改都必须先执行完整的状态检查流程。
+
+#### 状态管理流程
+1. **状态文档维护**
+   - 必须维护 `docs/DATABASE_STATE.md` 作为数据库真实状态的唯一权威文档
+   - 每次数据库结构变更后立即更新
+   - 包含表结构、约束、RLS策略、触发器、函数的完整信息
+
+2. **修改前检查清单**
+   ```markdown
+   - [ ] 已读取 DATABASE_STATE.md
+   - [ ] 已验证表结构与文档一致
+   - [ ] 已验证RLS策略与文档一致
+   - [ ] 已验证触发器与函数存在性
+   - [ ] 已分析问题根本原因
+   - [ ] 已制定回退方案
+   - [ ] 已获得用户确认
+   ```
+
+3. **状态验证SQL查询**
+   ```sql
+   -- 检查表结构
+   SELECT table_name, column_name, data_type, is_nullable, column_default 
+   FROM information_schema.columns 
+   WHERE table_schema = 'public' 
+   ORDER BY table_name, ordinal_position;
+   
+   -- 检查RLS策略
+   SELECT tablename, policyname, cmd, qual 
+   FROM pg_policies 
+   WHERE schemaname = 'public'
+   ORDER BY tablename, policyname;
+   
+   -- 检查触发器
+   SELECT trigger_name, event_object_table, action_timing, event_manipulation
+   FROM information_schema.triggers
+   WHERE trigger_schema = 'public';
+   
+   -- 检查函数
+   SELECT routine_name, routine_type
+   FROM information_schema.routines
+   WHERE routine_schema = 'public';
+   ```
+
+4. **安全修改流程**
+   - 备份当前策略：`\copy (SELECT tablename, policyname, cmd, qual FROM pg_policies WHERE schemaname = 'public') TO 'backup_policies.csv' CSV HEADER;`
+   - 小步骤修改：一次只改一个策略/表
+   - 立即测试：每步修改后验证功能
+   - 记录变更：更新 DATABASE_STATE.md
+   - Git提交：每个成功的修改立即提交
+
+5. **应急处理机制**
+   - 发现不一致时：立即停止修改，记录不一致，更新文档，重新分析
+   - 修改失败时：立即执行回退脚本，验证回退成功，分析失败原因
+
 ### RLS策略配置
 - 所有数据库修改都应通过迁移文件记录，避免代码和数据库状态不一致
 - RLS策略修复应该直接在Supabase Dashboard中执行，而非通过迁移文件
 - 团队可见性问题的根本原因是缺少数据库RLS策略的SELECT权限配置
+
+#### 团队成员可见性修复方案
+**问题**: 用户只能看到自己的成员记录，无法看到同团队的其他成员
+
+**根本原因**: RLS策略过于严格 (`user_id = auth.uid()`)
+
+**修复策略**:
+```sql
+-- 删除限制性策略
+DROP POLICY IF EXISTS "Team Members: Users can see their own membership record" ON team_members;
+
+-- 创建新策略：允许团队成员查看同团队成员
+CREATE POLICY "team_members_visibility_policy" ON team_members
+    FOR SELECT
+    USING (
+        -- 用户可以看到自己的成员记录
+        user_id = auth.uid() 
+        OR 
+        -- 用户可以看到自己创建的团队的所有成员
+        team_id IN (
+            SELECT id FROM teams WHERE created_by = auth.uid()
+        )
+        OR
+        -- 用户可以看到自己所在团队的其他成员
+        team_id IN (
+            SELECT team_id FROM team_members WHERE user_id = auth.uid()
+        )
+    );
+```
+
+**验证查询**:
+```sql
+-- 测试用户能看到的团队成员
+SELECT tm.team_id, tm.user_id, tm.created_at, tm.joined_at
+FROM team_members tm
+WHERE tm.team_id = 'YOUR_TEAM_ID';
+```
 
 ### RLS策略当前状态 (确认日期: 2024-12-19)
 **team_members表策略:**

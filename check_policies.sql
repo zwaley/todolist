@@ -1,0 +1,1 @@
+SELECT tablename, policyname, cmd, qual FROM pg_policies WHERE tablename = 'team_members';

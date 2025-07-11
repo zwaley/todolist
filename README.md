@@ -60,14 +60,77 @@ The application is designed to be more than just a personal todo list. It includ
     - [ ] Create a UI for users to create new teams.
     - [ ] Develop a system for inviting members to a team.
 
-## Getting Started
+## 🚀 Quick Start Guide
 
-First, set up your Supabase project and configure the environment variables.
+### Prerequisites
 
-Then, run the development server:
+- Node.js 18+ installed
+- A Supabase account and project
+- Git for version control
 
-```bash
-npm run dev
+### 📊 Database Setup
+
+#### For New Projects (First Time Setup)
+
+1. **Create a new Supabase project** at [supabase.com](https://supabase.com)
+2. **Initialize the database** by running the initial setup script:
+   - Go to your Supabase Dashboard → SQL Editor
+   - Copy and execute the content from `db/init/00_initial_setup.sql`
+   - This creates all tables, RLS policies, and required functions
+
+#### For Existing Projects (Updates)
+
+1. **Check current database version** in your Supabase project
+2. **Apply migrations in order** from `db/migrations/`:
+   - Execute files in sequence: V1 → V2 → V3...
+   - Each migration file is numbered for proper ordering
+3. **Detailed migration guide**: See `docs/DATABASE_MIGRATION_STRATEGY.md`
+
+#### Database File Structure
+
+```
+db/
+├── init/
+│   └── 00_initial_setup.sql    # 🆕 New projects start here
+└── migrations/
+    ├── V1__*.sql               # 🔄 Apply these for updates
+    ├── V2__*.sql
+    └── V6__*.sql
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+⚠️ **Important**: Always backup your data before running migrations!
+
+### 🛠️ Development Environment Setup
+
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd todolist
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment variables**:
+   - Copy `.env.example` to `.env.local`
+   - Add your Supabase project URL and anon key
+
+4. **Verify database setup**:
+   - Ensure all tables are created
+   - Test RLS policies are working
+
+5. **Start development server**:
+   ```bash
+   npm run dev
+   ```
+
+6. **Open your browser**:
+   Visit [http://localhost:3000](http://localhost:3000)
+
+### 📚 Additional Resources
+
+- **Database Documentation**: `docs/DATABASE_STATE.md`
+- **Migration Guide**: `docs/MIGRATION_EXECUTION_GUIDE.md`
+- **Troubleshooting**: `docs/LESSONS_LEARNED.md`
