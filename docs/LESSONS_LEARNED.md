@@ -410,3 +410,47 @@ ORDER BY tablename, policyname;
 *最后更新：2025年7月9日*
 *状态：持续更新*
 *目标：避免重复犯错，提升开发效率*
+
+---
+
+## 2024-07-11 团队成员列表为空的根因与修复
+
+- **问题现象**：团队成员页面为空，连自己都看不到。
+- **根因分析**：team_members 查询中错误地包含了 status 字段，而该字段在表结构中并不存在，导致 SQL 42703 错误，查询直接失败，成员列表为空。
+- **修复方法**：移除 status 字段，只查询实际存在的 user_id 字段。
+- **经验总结**：此类问题与 RLS、session、数据本身无关，属于典型的“表结构变更后代码未同步”或“字段拼写错误”导致的 bug。应优先检查 SQL 查询字段与表结构是否一致。
+
+---
+
+## 团队创建 server action 错误处理与重定向最佳实践
+
+### 现象与误区
+- server action 用 try-catch 包裹 redirect，导致无论成功还是失败，页面都显示“出错提示”且停留在原地。
+- 重名时应有详细错误提示，成功时应自动跳转到新团队详情页。
+
+### 正确写法
+- 不要用 try-catch 包裹 redirect，让 redirect 抛出的异常由 Next.js 处理，页面才能正常跳转。
+- 只做必要的业务判断和 redirect，catch 只用于捕获非 redirect 的异常。
+- 例如：
+
+```ts
+export async function createTeam(formData: FormData): Promise<void> {
+  // ...业务逻辑...
+  if (error) {
+    redirect('/teams/create?error=...')
+  }
+  redirect(`/teams/${team.id}`)
+}
+```
+
+### 典型排查思路
+1. 观察日志，确认 redirect 是否被 catch 到。
+2. 检查页面跳转和错误提示是否符合预期。
+3. 每次只做一小步，及时验证，便于定位问题。
+
+### 经验总结
+- redirect 抛出的异常不要被 catch，否则前端会误判为 action 失败。
+- 只在需要自定义错误处理时 catch 业务异常，redirect 让其自然冒泡。
+- 遇到“无论成功失败都报错”时，优先排查 try-catch 和 redirect 的配合。
+
+---

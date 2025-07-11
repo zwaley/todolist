@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 
 // 异步版本的 createClient，适配 Next.js 15
 export async function createClient() {
+  console.log('SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log('SUPABASE_ANON_KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   const cookieStore = await cookies()
 
   return createServerClient(

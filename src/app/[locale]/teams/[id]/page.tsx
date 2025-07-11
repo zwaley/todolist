@@ -8,6 +8,7 @@ import InviteCodeSection from './invite-code-section'
 import { TodoStatsBadge } from '@/components/todo-stats-badge'
 import { LanguageToggle } from '@/components/LanguageSwitcher'
 import TeamMemberActions from '@/components/TeamMemberActions'
+import { cookies } from 'next/headers'
 
 // This is a dynamic page, so we need to revalidate it to ensure fresh data.
 export const revalidate = 0
@@ -18,9 +19,12 @@ interface TeamPageProps {
 
 export default async function TeamPage({ params }: TeamPageProps) {
   const { id: teamId, locale } = await params
+  const cookieStore = await cookies()
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
+  console.log('所有 cookies:', cookieStore.getAll())
+  console.log('user.id:', user?.id)
 
   if (!user) {
     return redirect(`/${locale}/login`)
